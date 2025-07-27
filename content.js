@@ -110,14 +110,26 @@ class LinkedInSaver {
   }
   
   async savePost(post, button) {
+    const originalText = button.innerHTML;
+    
     try {
       // Check if extension context is valid
       if (!chrome.runtime?.id) {
         throw new Error('Extension context invalidated. Please refresh the page.');
       }
       
+      // Check if user is authenticated before proceeding
+      const { accessToken, selectedSheet } = await chrome.storage.local.get(['accessToken', 'selectedSheet']);
+      
+      if (!accessToken) {
+        throw new Error('Please authenticate with Google first. Click the extension icon to sign in.');
+      }
+      
+      if (!selectedSheet) {
+        throw new Error('Please select a Google Sheet first. Click the extension icon to choose a sheet.');
+      }
+      
       // Show loading state
-      const originalText = button.innerHTML;
       button.innerHTML = `
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" class="spinning">
           <path d="M8 0C3.58 0 0 3.58 0 8s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"/>
@@ -182,8 +194,14 @@ class LinkedInSaver {
       // Show user-friendly error message
       if (error.message.includes('Extension context invalidated')) {
         alert('Extension needs to be refreshed. Please reload the page and try again.');
+      } else if (error.message.includes('Please authenticate')) {
+        alert('Please sign in with Google first. Click the extension icon in the toolbar.');
+      } else if (error.message.includes('Please select a Google Sheet')) {
+        alert('Please select a Google Sheet first. Click the extension icon to choose one.');
       } else if (error.message.includes('No response from background script')) {
         alert('Connection error. Please refresh the page and try again.');
+      } else {
+        alert(`Error: ${error.message}`);
       }
     }
   }
