@@ -1,0 +1,80 @@
+.linkedin-saver-wrapper {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+}
+
+.linkedin-saver-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid #0a66c2;
+  border-radius: 20px;
+  color: #0a66c2;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  white-space: nowrap;
+}
+
+.linkedin-saver-btn:hover {
+  background: #0a66c2;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(10, 102, 194, 0.3);
+}
+
+.linkedin-saver-btn:active {
+  transform: translateY(0);
+}
+
+.linkedin-saver-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.linkedin-saver-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.linkedin-saver-btn .spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .linkedin-saver-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  
+  .linkedin-saver-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .linkedin-saver-btn {
+    border-color: #70b5f9;
+    color: #70b5f9;
+  }
+  
+  .linkedin-saver-btn:hover {
+    background: #70b5f9;
+    color: #000;
+  }
+}
