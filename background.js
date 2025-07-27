@@ -12,23 +12,30 @@ class BackgroundService {
   
   async handleMessage(request, sender, sendResponse) {
     try {
+      console.log('Background script received message:', request.action);
+      
       switch (request.action) {
         case 'authenticate':
           const authResult = await this.authenticate();
+          console.log('Authentication result:', authResult.success);
           sendResponse(authResult);
           break;
           
         case 'getSheets':
           const sheetsResult = await this.getSheets();
+          console.log('Get sheets result:', sheetsResult.success);
           sendResponse(sheetsResult);
           break;
           
         case 'saveToSheet':
+          console.log('Saving to sheet with data:', request.data);
           const saveResult = await this.saveToSheet(request.data);
+          console.log('Save result:', saveResult.success);
           sendResponse(saveResult);
           break;
           
         default:
+          console.error('Unknown action:', request.action);
           sendResponse({ success: false, error: 'Unknown action' });
       }
     } catch (error) {

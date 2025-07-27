@@ -111,6 +111,11 @@ class LinkedInSaver {
   
   async savePost(post, button) {
     try {
+      // Check if extension context is valid
+      if (!chrome.runtime?.id) {
+        throw new Error('Extension context invalidated. Please refresh the page.');
+      }
+      
       // Show loading state
       const originalText = button.innerHTML;
       button.innerHTML = `
@@ -125,11 +130,20 @@ class LinkedInSaver {
       // Extract post data
       const postData = this.extractPostData(post);
       
+      // Validate extracted data
+      if (!postData.content && !postData.url) {
+        throw new Error('Could not extract post data. Please try again.');
+      }
+      
       // Send to background script
       const response = await chrome.runtime.sendMessage({
         action: 'saveToSheet',
         data: postData
       });
+      
+      if (!response) {
+        throw new Error('No response from background script. Please refresh and try again.');
+      }
       
       if (response.success) {
         // Show success state
@@ -146,7 +160,7 @@ class LinkedInSaver {
           button.disabled = false;
         }, 2000);
       } else {
-        throw new Error(response.error || 'Failed to save post');
+        throw new Error(response.error || 'Failed to save post. Please check your connection and try again.');
       }
     } catch (error) {
       console.error('Error saving post:', error);
@@ -164,6 +178,13 @@ class LinkedInSaver {
         button.innerHTML = originalText;
         button.disabled = false;
       }, 3000);
+      
+      // Show user-friendly error message
+      if (error.message.includes('Extension context invalidated')) {
+        alert('Extension needs to be refreshed. Please reload the page and try again.');
+      } else if (error.message.includes('No response from background script')) {
+        alert('Connection error. Please refresh the page and try again.');
+      }
     }
   }
   
@@ -172,7 +193,21 @@ class LinkedInSaver {
     
     // Extract post content
     let content = '';
-    const contentElement = post.querySelector('.feed-shared-text, .feed-shared-update-v2__description, [data-test-id="main-feed-activity-card"] .break-words');
+    const contentSelectors = [
+      '.feed-shared-text',
+      '.feed-shared-update-v2__description', 
+      '[data-test-id="main-feed-activity-card"] .break-words',
+      '.feed-shared-text__text-view',
+      '.attributed-text-segment-list__content',
+      '.feed-shared-inline-show-more-text'
+    ];
+    
+    let contentElement = null;
+    for (const selector of contentSelectors) {
+      contentElement = post.querySelector(selector);
+      if (contentElement) break;
+    }
+    
     if (contentElement) {
       content = contentElement.textContent.trim();
     }
@@ -182,8 +217,20 @@ class LinkedInSaver {
     let comments = 0;
     let reposts = 0;
     
-    // Try to find reaction counts
-    const reactionButton = post.querySelector('[aria-label*="reaction"], .social-counts-reactions');
+    // Try to find reaction counts with multiple selectors
+    const reactionSelectors = [
+      '[aria-label*="reaction"]',
+      '.social-counts-reactions',
+      '.social-counts-reactions__count',
+      '[data-test-id="social-counts-reactions"]'
+    ];
+    
+    let reactionButton = null;
+    for (const selector of reactionSelectors) {
+      reactionButton = post.querySelector(selector);
+      if (reactionButton) break;
+    }
+    
     if (reactionButton) {
       const reactionText = reactionButton.textContent || reactionButton.getAttribute('aria-label') || '';
       const reactionMatch = reactionText.match(/(\d+)/);
@@ -192,8 +239,19 @@ class LinkedInSaver {
       }
     }
     
-    // Try to find comment count
-    const commentButton = post.querySelector('[aria-label*="comment"]');
+    // Try to find comment count with multiple selectors
+    const commentSelectors = [
+      '[aria-label*="comment"]',
+      '[data-test-id="social-counts-comments"]',
+      '.social-counts-comments'
+    ];
+    
+    let commentButton = null;
+    for (const selector of commentSelectors) {
+      commentButton = post.querySelector(selector);
+      if (commentButton) break;
+    }
+    
     if (commentButton) {
       const commentText = commentButton.textContent || commentButton.getAttribute('aria-label') || '';
       const commentMatch = commentText.match(/(\d+)/);
@@ -202,8 +260,19 @@ class LinkedInSaver {
       }
     }
     
-    // Try to find repost count
-    const repostButton = post.querySelector('[aria-label*="repost"], [aria-label*="share"]');
+    // Try to find repost count with multiple selectors
+    const repostSelectors = [
+      '[aria-label*="repost"]',
+      '[aria-label*="share"]',
+      '[data-test-id="social-counts-reposts"]'
+    ];
+    
+    let repostButton = null;
+    for (const selector of repostSelectors) {
+      repostButton = post.querySelector(selector);
+      if (repostButton) break;
+    }
+    
     if (repostButton) {
       const repostText = repostButton.textContent || repostButton.getAttribute('aria-label') || '';
       const repostMatch = repostText.match(/(\d+)/);
@@ -214,10 +283,23 @@ class LinkedInSaver {
     
     // Try to get post URL
     let url = '';
-    const postLink = post.querySelector('a[href*="/feed/update/"]');
+    const urlSelectors = [
+      'a[href*="/feed/update/"]',
+      'a[href*="/posts/"]',
+      'a[href*="linkedin.com/feed/update"]'
+    ];
+    
+    let postLink = null;
+    for (const selector of urlSelectors) {
+      postLink = post.querySelector(selector);
+      if (postLink) break;
+    }
+    
     if (postLink) {
       url = postLink.href;
     }
+    
+    console.log('Extracted post data:', { timestamp, content: content.substring(0, 100), likes, comments, reposts, url });
     
     return {
       timestamp,
