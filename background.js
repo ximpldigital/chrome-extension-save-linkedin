@@ -158,8 +158,12 @@ class BackgroundService {
       
       console.log('Using sheet:', selectedSheet);
       
+      // Get the first worksheet name
+      const worksheetName = await this.getFirstWorksheetName(accessToken, selectedSheet.id);
+      console.log('Using worksheet:', worksheetName);
+      
       // First, ensure the sheet has headers
-      await this.ensureHeaders(accessToken, selectedSheet.id);
+      await this.ensureHeaders(accessToken, selectedSheet.id, worksheetName);
       
       // Prepare the row data
       const rowData = [
@@ -174,7 +178,7 @@ class BackgroundService {
       console.log('Prepared row data:', rowData);
       
       // Append the data to the sheet
-      const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${selectedSheet.id}/values/Sheet1:append?valueInputOption=RAW`;
+      const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${selectedSheet.id}/values/${encodeURIComponent(worksheetName)}:append?valueInputOption=RAW`;
       console.log('Making request to:', apiUrl);
       
       const response = await fetch(apiUrl, {
@@ -228,10 +232,42 @@ class BackgroundService {
     }
   }
   
-  async ensureHeaders(accessToken, sheetId) {
+  async getFirstWorksheetName(accessToken, sheetId) {
+    try {
+      const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          await chrome.storage.local.remove(['accessToken']);
+          throw new Error('Authentication expired. Please reconnect.');
+        }
+        throw new Error('Failed to get worksheet information');
+      }
+      
+      const data = await response.json();
+      
+      if (data.sheets && data.sheets.length > 0) {
+        return data.sheets[0].properties.title;
+      }
+      
+      // Fallback to 'Sheet1' if no sheets found
+      return 'Sheet1';
+    } catch (error) {
+      console.error('Error getting worksheet name:', error);
+      // Fallback to 'Sheet1'
+      return 'Sheet1';
+    }
+  }
+  
+  async ensureHeaders(accessToken, sheetId, worksheetName) {
     try {
       // Check if the first row has headers
-      const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Sheet1!A1:F1`, {
+      const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(worksheetName)}!A1:F1`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
@@ -252,7 +288,7 @@ class BackgroundService {
       if (!data.values || data.values.length === 0 || data.values[0][0] !== 'Timestamp') {
         const headers = ['Timestamp', 'Content', 'Likes', 'Comments', 'Reposts', 'URL'];
         
-        const headerResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Sheet1!A1:F1?valueInputOption=RAW`, {
+        const headerResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(worksheetName)}!A1:F1?valueInputOption=RAW`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${accessToken}`,
