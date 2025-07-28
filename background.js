@@ -162,23 +162,20 @@ class BackgroundService {
       const worksheetName = await this.getFirstWorksheetName(accessToken, selectedSheet.id);
       console.log('Using worksheet:', worksheetName);
       
-      // First, ensure the sheet has headers
-      await this.ensureHeaders(accessToken, selectedSheet.id, worksheetName);
+      // Check if the sheet has the expected headers
+      const headersMatch = await this.ensureHeaders(accessToken, selectedSheet.id, worksheetName);
       
-      // Prepare the row data
+      // Prepare the row data to match your sheet structure: post, likes, reposts
       const rowData = [
-        postData.timestamp,
         postData.content,
         postData.likes,
-        postData.comments,
-        postData.reposts,
-        postData.url || ''
+        postData.reposts
       ];
       
       console.log('Prepared row data:', rowData);
       
       // Append the data to the sheet
-      const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${selectedSheet.id}/values/${encodeURIComponent(worksheetName)}:append?valueInputOption=RAW`;
+      const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${selectedSheet.id}/values/${encodeURIComponent(worksheetName)}!A:C:append?valueInputOption=RAW`;
       console.log('Making request to:', apiUrl);
       
       const response = await fetch(apiUrl, {
@@ -266,8 +263,8 @@ class BackgroundService {
   
   async ensureHeaders(accessToken, sheetId, worksheetName) {
     try {
-      // Check if the first row has headers
-      const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(worksheetName)}!A1:F1`, {
+      // Check if the first row has the expected headers
+      const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(worksheetName)}!A1:C1`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
@@ -284,9 +281,31 @@ class BackgroundService {
       
       const data = await response.json();
       
-      // If no values or first row doesn't have our headers, add them
-      if (!data.values || data.values.length === 0 || data.values[0][0] !== 'Timestamp') {
-        const headers = ['Timestamp', 'Content', 'Likes', 'Comments', 'Reposts', 'URL'];
+      // Check if headers match expected format
+      const expectedHeaders = ['post', 'likes', 'reposts'];
+      let headersMatch = false;
+      
+      if (data.values && data.values.length > 0) {
+        const existingHeaders = data.values[0];
+        headersMatch = expectedHeaders.every((header, index) => 
+          existingHeaders[index] && existingHeaders[index].toLowerCase() === header.toLowerCase()
+        );
+      }
+      
+      // If headers don't match, log a warning but don't overwrite
+      if (!headersMatch) {
+        console.log('Sheet headers do not match expected format. Expected:', expectedHeaders);
+        console.log('Found:', data.values && data.values.length > 0 ? data.values[0] : 'No headers');
+        console.log('Will attempt to append data anyway...');
+      }
+      
+      return headersMatch;
+    } catch (error) {
+      console.error('Error checking headers:', error);
+      return false;
+    }
+  }
+}
         
         const headerResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(worksheetName)}!A1:F1?valueInputOption=RAW`, {
           method: 'PUT',
