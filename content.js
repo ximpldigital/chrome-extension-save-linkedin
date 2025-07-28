@@ -153,6 +153,8 @@ class LinkedInSaver {
         data: postData
       });
       
+      console.log('Background script response:', response);
+      
       if (!response) {
         throw new Error('No response from background script. Please refresh and try again.');
       }

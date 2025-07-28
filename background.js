@@ -144,6 +144,8 @@ class BackgroundService {
   
   async saveToSheet(postData) {
     try {
+      console.log('Starting saveToSheet with data:', postData);
+      
       const { accessToken, selectedSheet } = await chrome.storage.local.get(['accessToken', 'selectedSheet']);
       
       if (!accessToken) {
@@ -153,6 +155,8 @@ class BackgroundService {
       if (!selectedSheet) {
         throw new Error('No sheet selected');
       }
+      
+      console.log('Using sheet:', selectedSheet);
       
       // First, ensure the sheet has headers
       await this.ensureHeaders(accessToken, selectedSheet.id);
@@ -167,8 +171,13 @@ class BackgroundService {
         postData.url || ''
       ];
       
+      console.log('Prepared row data:', rowData);
+      
       // Append the data to the sheet
-      const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${selectedSheet.id}/values/Sheet1:append?valueInputOption=RAW`, {
+      const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${selectedSheet.id}/values/Sheet1:append?valueInputOption=RAW`;
+      console.log('Making request to:', apiUrl);
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -178,6 +187,9 @@ class BackgroundService {
           values: [rowData]
         })
       });
+      
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
       
       if (!response.ok) {
         if (response.status === 401) {
@@ -192,8 +204,22 @@ class BackgroundService {
           }
           throw new Error('Permission denied. Please check your Google Sheets permissions.');
         }
-        throw new Error(`Failed to save to sheet: ${response.statusText}`);
+        // Get detailed error information
+        let errorDetails = response.statusText;
+        try {
+          const errorData = await response.json();
+          if (errorData.error && errorData.error.message) {
+            errorDetails = errorData.error.message;
+          }
+        } catch (e) {
+          // If we can't parse the error response, use status text
+        }
+        console.error('Sheets API error response:', response.status, errorDetails);
+        throw new Error(`Failed to save to sheet (${response.status}): ${errorDetails}`);
       }
+      
+      const responseData = await response.json();
+      console.log('Success response:', responseData);
       
       return { success: true };
     } catch (error) {
