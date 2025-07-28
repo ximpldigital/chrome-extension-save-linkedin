@@ -268,7 +268,7 @@ class BackgroundService {
   async ensureHeaders(accessToken, sheetId, worksheetName) {
     try {
       // Check if the first row has the expected headers
-      const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(worksheetName)}!A1:C1`, {
+      const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(worksheetName)}!A1:D1`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
