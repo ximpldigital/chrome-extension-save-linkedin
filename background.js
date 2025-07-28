@@ -1,7 +1,6 @@
 class BackgroundService {
   constructor() {
     this.CLIENT_ID = '326390162333-qf1jbs6v4hdcqsv4er8j09erl53diqcd.apps.googleusercontent.com';
-    this.EXTENSION_ID = 'opkcpoeckkgiagmbfgajmnohnpehdipm';
     this.setupMessageListener();
   }
   
@@ -48,14 +47,20 @@ class BackgroundService {
   
   async authenticate() {
     try {
+      // Use Chrome's automatic redirect URL
+      const redirectUrl = chrome.identity.getRedirectURL();
+      
       const oauth2Url =
         'https://accounts.google.com/o/oauth2/auth' +
         '?client_id=' + this.CLIENT_ID +
-        '&redirect_uri=https://' + this.EXTENSION_ID + '.chromiumapp.org/' +
+        '&redirect_uri=' + encodeURIComponent(redirectUrl) +
         '&response_type=token' +
         '&scope=' +
         encodeURIComponent('https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive') +
         '&prompt=consent';
+      
+      console.log('Redirect URL:', redirectUrl);
+      console.log('OAuth2 URL:', oauth2Url);
 
       const token = await new Promise((resolve, reject) => {
         chrome.identity.launchWebAuthFlow(
