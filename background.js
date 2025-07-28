@@ -162,20 +162,23 @@ class BackgroundService {
       const worksheetName = await this.getFirstWorksheetName(accessToken, selectedSheet.id);
       console.log('Using worksheet:', worksheetName);
       
-      // Check if the sheet has the expected headers
-      const headersMatch = await this.ensureHeaders(accessToken, selectedSheet.id, worksheetName);
+      // First, ensure the sheet has headers
+      await this.ensureHeaders(accessToken, selectedSheet.id, worksheetName);
       
-      // Prepare the row data to match your sheet structure: post, likes, reposts
+      // Prepare the row data
       const rowData = [
+        postData.timestamp,
         postData.content,
         postData.likes,
-        postData.reposts
+        postData.comments,
+        postData.reposts,
+        postData.url || ''
       ];
       
       console.log('Prepared row data:', rowData);
       
       // Append the data to the sheet
-      const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${selectedSheet.id}/values/${encodeURIComponent(worksheetName)}!A:C:append?valueInputOption=RAW`;
+      const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${selectedSheet.id}/values/${encodeURIComponent(worksheetName)}:append?valueInputOption=RAW`;
       console.log('Making request to:', apiUrl);
       
       const response = await fetch(apiUrl, {
@@ -307,31 +310,6 @@ class BackgroundService {
   }
 }
         
-        const headerResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(worksheetName)}!A1:F1?valueInputOption=RAW`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            values: [headers]
-          })
-        });
-        
-        if (!headerResponse.ok) {
-          if (headerResponse.status === 401) {
-            await chrome.storage.local.remove(['accessToken']);
-            throw new Error('Authentication expired. Please reconnect.');
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error ensuring headers:', error);
-      // Don't throw here, as this is not critical
-    }
-  }
-}
-
 // Initialize background service
 const backgroundService = new BackgroundService();
 
