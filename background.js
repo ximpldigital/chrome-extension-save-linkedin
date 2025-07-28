@@ -168,6 +168,7 @@ class BackgroundService {
       // Prepare the row data
       const rowData = [
         postData.timestamp,
+        postData.timestamp,
         postData.content,
         postData.likes,
         postData.reposts,
@@ -178,7 +179,7 @@ class BackgroundService {
       console.log('Prepared row data:', rowData);
       
       // Append the data to the sheet
-      const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${selectedSheet.id}/values/${encodeURIComponent(worksheetName)}:append?valueInputOption=RAW`;
+      const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${selectedSheet.id}/values/${encodeURIComponent(worksheetName)}!A:E:append?valueInputOption=RAW`;
       console.log('Making request to:', apiUrl);
       
       const response = await fetch(apiUrl, {
@@ -285,7 +286,7 @@ class BackgroundService {
       const data = await response.json();
       
       // Check if headers match expected format
-      const expectedHeaders = ['post', 'likes', 'reposts'];
+      const expectedHeaders = ['date', 'post', 'likes', 'reposts', 'comments'];
       let headersMatch = false;
       
       if (data.values && data.values.length > 0) {

@@ -209,7 +209,7 @@ class LinkedInSaver {
   }
   
   extractPostData(post) {
-    const timestamp = new Date().toISOString();
+    const timestamp = new Date().toLocaleDateString('de-DE');
     
     // Extract post content
     let content = '';
@@ -237,67 +237,102 @@ class LinkedInSaver {
     let comments = 0;
     let reposts = 0;
     
-    // Try to find reaction counts with multiple selectors
-    const reactionSelectors = [
-      '[aria-label*="reaction"]',
-      '.social-counts-reactions',
-      '.social-counts-reactions__count',
-      '[data-test-id="social-counts-reactions"]'
-    ];
-    
-    let reactionButton = null;
-    for (const selector of reactionSelectors) {
-      reactionButton = post.querySelector(selector);
-      if (reactionButton) break;
-    }
-    
-    if (reactionButton) {
-      const reactionText = reactionButton.textContent || reactionButton.getAttribute('aria-label') || '';
-      const reactionMatch = reactionText.match(/(\d+)/);
-      if (reactionMatch) {
-        likes = parseInt(reactionMatch[1], 10);
+    // Extract likes from the specific HTML structure you provided
+    const likesElement = post.querySelector('.social-details-social-counts__reactions .social-details-social-counts__reactions-count');
+    if (likesElement) {
+      const likesText = likesElement.textContent.trim();
+      const likesMatch = likesText.match(/(\d+)/);
+      if (likesMatch) {
+        likes = parseInt(likesMatch[1], 10);
       }
     }
     
-    // Try to find comment count with multiple selectors
-    const commentSelectors = [
-      '[aria-label*="comment"]',
-      '[data-test-id="social-counts-comments"]',
-      '.social-counts-comments'
-    ];
-    
-    let commentButton = null;
-    for (const selector of commentSelectors) {
-      commentButton = post.querySelector(selector);
-      if (commentButton) break;
-    }
-    
-    if (commentButton) {
-      const commentText = commentButton.textContent || commentButton.getAttribute('aria-label') || '';
-      const commentMatch = commentText.match(/(\d+)/);
-      if (commentMatch) {
-        comments = parseInt(commentMatch[1], 10);
+    // Fallback: try other selectors for likes
+    if (likes === 0) {
+      const fallbackLikesSelectors = [
+        '[aria-label*="reaction"]',
+        '.social-counts-reactions',
+        '.social-counts-reactions__count',
+        '[data-test-id="social-counts-reactions"]'
+      ];
+      
+      for (const selector of fallbackLikesSelectors) {
+        const element = post.querySelector(selector);
+        if (element) {
+          const text = element.textContent || element.getAttribute('aria-label') || '';
+          const match = text.match(/(\d+)/);
+          if (match) {
+            likes = parseInt(match[1], 10);
+            break;
+          }
+        }
       }
     }
     
-    // Try to find repost count with multiple selectors
-    const repostSelectors = [
-      '[aria-label*="repost"]',
-      '[aria-label*="share"]',
-      '[data-test-id="social-counts-reposts"]'
-    ];
-    
-    let repostButton = null;
-    for (const selector of repostSelectors) {
-      repostButton = post.querySelector(selector);
-      if (repostButton) break;
+    // Extract comments from the specific HTML structure
+    const commentsElement = post.querySelector('.social-details-social-counts__comments button');
+    if (commentsElement) {
+      const commentsText = commentsElement.textContent || commentsElement.getAttribute('aria-label') || '';
+      const commentsMatch = commentsText.match(/(\d+)/);
+      if (commentsMatch) {
+        comments = parseInt(commentsMatch[1], 10);
+      }
     }
     
-    if (repostButton) {
-      const repostText = repostButton.textContent || repostButton.getAttribute('aria-label') || '';
-      const repostMatch = repostText.match(/(\d+)/);
-      if (repostMatch) {
-        reposts = parseInt(repostMatch[1], 10);
+    // Fallback: try other selectors for comments
+    if (comments === 0) {
+      const fallbackCommentSelectors = [
+        '[aria-label*="comment"]',
+        '[aria-label*="Kommentar"]',
+        '[data-test-id="social-counts-comments"]',
+        '.social-counts-comments'
+      ];
+      
+      for (const selector of fallbackCommentSelectors) {
+        const element = post.querySelector(selector);
+        if (element) {
+          const text = element.textContent || element.getAttribute('aria-label') || '';
+          const match = text.match(/(\d+)/);
+          if (match) {
+            comments = parseInt(match[1], 10);
+            break;
+          }
+        }
+      }
+    }
+    
+    // Extract reposts from the specific HTML structure
+    const repostElements = post.querySelectorAll('.social-details-social-counts__item button');
+    for (const element of repostElements) {
+      const text = element.textContent || element.getAttribute('aria-label') || '';
+      if (text.includes('Repost') || text.includes('repost')) {
+        const repostMatch = text.match(/(\d+)/);
+        if (repostMatch) {
+          reposts = parseInt(repostMatch[1], 10);
+          break;
+        }
+      }
+    }
+    
+    // Fallback: try other selectors for reposts
+    if (reposts === 0) {
+      const fallbackRepostSelectors = [
+        '[aria-label*="repost"]',
+        '[aria-label*="Repost"]',
+        '[aria-label*="share"]',
+        '[data-test-id="social-counts-reposts"]'
+      ];
+      
+      for (const selector of fallbackRepostSelectors) {
+        const element = post.querySelector(selector);
+        if (element) {
+          const text = element.textContent || element.getAttribute('aria-label') || '';
+          const match = text.match(/(\d+)/);
+          if (match) {
+            reposts = parseInt(match[1], 10);
+            break;
+          }
+        }
       }
     }
     
@@ -325,8 +360,8 @@ class LinkedInSaver {
       timestamp,
       content: content.substring(0, 1000), // Limit content length
       likes,
-      comments,
       reposts,
+      comments,
       url
     };
   }
