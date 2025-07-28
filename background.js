@@ -2,6 +2,7 @@ class BackgroundService {
   constructor() {
     this.CLIENT_ID = '326390162333-qf1jbs6v4hdcqsv4er8j09erl53diqcd.apps.googleusercontent.com';
     this.REDIRECT_URI = 'https://opkcpoeckkgiagmbfgajmnohnpehdipm.chromiumapp.org/';
+    this.setupMessageListener();
   }
   
   setupMessageListener() {
@@ -251,4 +252,13 @@ class BackgroundService {
 }
 
 // Initialize background service
-new BackgroundService();
+const backgroundService = new BackgroundService();
+
+// Ensure the service worker stays alive
+chrome.runtime.onStartup.addListener(() => {
+  console.log('Extension startup');
+});
+
+chrome.runtime.onInstalled.addListener(() => {
+  console.log('Extension installed');
+});
