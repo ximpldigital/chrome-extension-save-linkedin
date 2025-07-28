@@ -170,7 +170,8 @@ class BackgroundService {
         postData.timestamp,
         postData.content,
         postData.likes,
-        postData.comments,
+        postData.reposts,
+        postData.comments
         postData.reposts,
         postData.url || ''
       ];
