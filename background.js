@@ -1,5 +1,7 @@
 class BackgroundService {
   constructor() {
+    this.CLIENT_ID = '326390162333-qf1jbs6v4hdcqsv4er8j09erl53diqcd.apps.googleusercontent.com';
+    this.EXTENSION_ID = 'opkcpoeckkgiagmbfgajmnohnpehdipm';
     this.setupMessageListener();
   }
   
@@ -46,14 +48,48 @@ class BackgroundService {
   
   async authenticate() {
     try {
+      const oauth2Url =
+        'https://accounts.google.com/o/oauth2/auth' +
+        '?client_id=' + this.CLIENT_ID +
+        '&redirect_uri=https://' + this.EXTENSION_ID + '.chromiumapp.org/' +
+        '&response_type=token' +
+        '&scope=' +
+        encodeURIComponent('https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive') +
+        '&prompt=consent';
+
       const token = await new Promise((resolve, reject) => {
-        chrome.identity.getAuthToken({ interactive: true }, (token) => {
-          if (chrome.runtime.lastError) {
-            reject(new Error(chrome.runtime.lastError.message));
-          } else {
-            resolve(token);
+        chrome.identity.launchWebAuthFlow(
+          {
+            url: oauth2Url,
+            interactive: true
+          },
+          function (redirectUrl) {
+            if (chrome.runtime.lastError) {
+              console.error('Auth error:', chrome.runtime.lastError.message);
+              reject(new Error(chrome.runtime.lastError.message));
+              return;
+            }
+
+            if (!redirectUrl) {
+              reject(new Error('No redirect URL received'));
+              return;
+            }
+
+            console.log('Redirect URL:', redirectUrl);
+
+            // Extract access token from redirect URL
+            const tokenMatch = redirectUrl.match(/access_token=([^&]+)/);
+            const accessToken = tokenMatch ? tokenMatch[1] : null;
+
+            if (!accessToken) {
+              reject(new Error('No access token found in redirect URL'));
+              return;
+            }
+
+            console.log('Access Token extracted successfully');
+            resolve(accessToken);
           }
-        });
+        );
       });
       
       // Store the token
@@ -83,7 +119,7 @@ class BackgroundService {
       
       if (!response.ok) {
         if (response.status === 401) {
-          // Token expired, clear it
+          // Token expired or invalid, clear it
           await chrome.storage.local.remove(['accessToken']);
           throw new Error('Authentication expired. Please reconnect.');
         }
@@ -142,8 +178,16 @@ class BackgroundService {
       
       if (!response.ok) {
         if (response.status === 401) {
+          // Token expired or invalid, clear it
           await chrome.storage.local.remove(['accessToken']);
           throw new Error('Authentication expired. Please reconnect.');
+        }
+        if (response.status === 403) {
+          const errorData = await response.json().catch(() => ({}));
+          if (errorData.error && errorData.error.message && errorData.error.message.includes('rate limit')) {
+            throw new Error('Rate limit exceeded. Please wait a moment and try again.');
+          }
+          throw new Error('Permission denied. Please check your Google Sheets permissions.');
         }
         throw new Error(`Failed to save to sheet: ${response.statusText}`);
       }
@@ -166,6 +210,10 @@ class BackgroundService {
       });
       
       if (!response.ok) {
+        if (response.status === 401) {
+          await chrome.storage.local.remove(['accessToken']);
+          throw new Error('Authentication expired. Please reconnect.');
+        }
         throw new Error('Failed to check headers');
       }
       
@@ -175,7 +223,7 @@ class BackgroundService {
       if (!data.values || data.values.length === 0 || data.values[0][0] !== 'Timestamp') {
         const headers = ['Timestamp', 'Content', 'Likes', 'Comments', 'Reposts', 'URL'];
         
-        await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Sheet1!A1:F1?valueInputOption=RAW`, {
+        const headerResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Sheet1!A1:F1?valueInputOption=RAW`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${accessToken}`,
@@ -185,6 +233,13 @@ class BackgroundService {
             values: [headers]
           })
         });
+        
+        if (!headerResponse.ok) {
+          if (headerResponse.status === 401) {
+            await chrome.storage.local.remove(['accessToken']);
+            throw new Error('Authentication expired. Please reconnect.');
+          }
+        }
       }
     } catch (error) {
       console.error('Error ensuring headers:', error);
